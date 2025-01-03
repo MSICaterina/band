@@ -51,6 +51,7 @@ func GetTxCmdCreateTunnel() *cobra.Command {
 	txCmd.AddCommand(
 		GetTxCmdCreateTSSTunnel(),
 		GetTxCmdCreateIBCTunnel(),
+		GetTxCmdCreateIBCHookTunnel(),
 	)
 
 	return txCmd
@@ -141,6 +142,55 @@ func GetTxCmdCreateIBCTunnel() *cobra.Command {
 			msg, err := types.NewMsgCreateIBCTunnel(
 				signalInfos.ToSignalDeviations(),
 				interval,
+				initialDeposit,
+				clientCtx.GetFromAddress().String(),
+			)
+			if err != nil {
+				return err
+			}
+
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+func GetTxCmdCreateIBCHookTunnel() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "ibc-hook [channel-id] [destination-contract-address] [initial-deposit] [interval] [signalInfos-json-file]",
+		Short: "Create a new IBC hook tunnel",
+		Args:  cobra.ExactArgs(5),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			channelID := args[0]
+			destinationContractAddress := args[1]
+
+			initialDeposit, err := sdk.ParseCoinsNormalized(args[2])
+			if err != nil {
+				return err
+			}
+
+			interval, err := strconv.ParseUint(args[3], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			signalInfos, err := parseSignalDeviations(args[4])
+			if err != nil {
+				return err
+			}
+
+			msg, err := types.NewMsgCreateIBCHookTunnel(
+				signalInfos.ToSignalDeviations(),
+				interval,
+				channelID,
+				destinationContractAddress,
 				initialDeposit,
 				clientCtx.GetFromAddress().String(),
 			)
